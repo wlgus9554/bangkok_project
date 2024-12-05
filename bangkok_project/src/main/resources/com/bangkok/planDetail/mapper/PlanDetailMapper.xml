@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bangkok.planDetail.mapper.PlanDetailMapper">
+
+<!-- 여행 날짜 조회 -->
+<select id="getDate" resultType="com.bangkok.planDetail.vo.PlanDetailVO">
+	select DISTINCT tripDate from planDetail where tno = #{tno}
+</select>
+
+<!-- 2-2. planList -->
+<select id="planList" resultType="com.bangkok.planDetail.vo.PlanDetailVO">
+	select p.pno,  p.tno, p.tripDate, p.no,
+    	p.planComment, ti.place, ti.imageFile, tc.cate_name
+	from planDetail p, tripPlan t, tripInfo ti, tripInfoCategory tc
+	where p.tno = #{tno} 
+		and p.tripDate = #{tripDate}
+		and p.tno = t.tno 
+		and p.no = ti.no 
+		and ti.cate_code1 = tc.cate_code1
+	    and p.tripDate between t.tripStartDate and t.tripEndDate
+	order by p.tripTime, p.pno
+</select>
+
+<!-- 2-3. planView -->
+<select id="planView" resultType="com.bangkok.planDetail.vo.PlanDetailVO">
+	select p.pno, p.tripDate, p.no, to_char(p.tripTime, 'HH24:MI') tripTime, p.planComment, ct.cityNum,
+	    ti.place, ti.imageFile, tc.cate_name
+	from planDetail p, tripPlan t, city ct, tripInfo ti, tripInfoCategory tc
+	where p.tno = #{tno} and p.pno = #{pno}
+		and p.tno = t.tno
+	    and p.no = ti.no
+	    and ct.cityNum = ti.cityNum
+	    and ti.cate_code1 = tc.cate_code1
+	    and p.tripDate between t.tripStartDate and t.tripEndDate
+</select>
+
+<!-- 기간별 날짜 write -->
+<insert id="planWrite">
+	<selectKey keyProperty="pno" resultType="Long" order="BEFORE">
+		select plan_seq.nextval from dual
+	</selectKey>
+	<!-- 달력 해결하기 -->
+	insert into planDetail(pno, tno, tripDate, no
+		<if test="tripTime != null and tripTime != ''">
+			, tripTime
+		</if>
+		<if test="planComment != null and planComment != ''.toString()">
+			, planComment
+		</if>
+		)
+	values (#{pno}, #{tno}, TO_CHAR(#{tripDate}, 'yyyy-MM-dd'), #{no} 
+		<if test="tripTime != null and tripTime != ''">
+			, TO_TIMESTAMP(#{tripTime}, 'HH24:MI')
+		</if>
+		<if test="planComment != null and planComment != ''.toString()">
+			, #{planComment}
+		</if>
+		)
+</insert>
+
+<!-- update -->
+<update id="planUpdate">
+	update planDetail
+	set tripDate = #{tripDate}, no = #{no}
+		<if test="tripTime != null and tripTime != ''">
+			, tripTime = TO_TIMESTAMP(#{tripTime}, 'HH24:MI')
+		</if>
+		<if test="planComment != null and planComment != ''">
+			, planComment = #{planComment}
+		</if>
+	where pno = #{pno} and tno = #{tno}
+</update>
+
+<!-- delete -->
+<delete id="planDelete">
+	<![CDATA[
+		delete from planDetail where pno = #{pno} and tno = #{tno}
+	]]>
+</delete>
+
+</mapper>

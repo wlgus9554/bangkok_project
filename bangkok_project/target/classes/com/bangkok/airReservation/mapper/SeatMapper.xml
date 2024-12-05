@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bangkok.airReservation.mapper.SeatMapper">
+
+	<!-- 전체 좌석 조회 -->
+	<select id="getASeats"
+		resultType="com.bangkok.airReservation.vo.SeatVO">
+		SELECT seatNo, seatRow, seatID, seatCol, classNo, scheduleID, status
+		FROM seat
+		WHERE scheduleID =
+		#{scheduleId_a}
+
+		ORDER BY classNo DESC
+	</select>
+
+	<select id="getDSeats"
+		resultType="com.bangkok.airReservation.vo.SeatVO">
+		SELECT seatNo, seatRow, seatID, seatCol, classNo, scheduleID, status
+		FROM seat
+		WHERE scheduleID =
+		#{scheduleId_d}
+		ORDER BY classNo DESC
+	</select>
+	
+	
+	<select id="getASeatsReserved"
+		resultType="com.bangkok.airReservation.vo.SeatVO">
+		SELECT s.seatNo, s.seatRow, s.seatID, s.seatCol, s.classNo, s.scheduleID, s.status, sr.reservationNo
+		FROM seat s seatReservation sr
+		WHERE scheduleID = #{scheduleId_a}
+		and sr.reservationNo = #{reservationNo}
+		and sr.seatNo = s.seatNo
+
+		ORDER BY classNo DESC
+	</select>
+
+	<select id="getDSeatsReserved"
+		resultType="com.bangkok.airReservation.vo.SeatVO">
+		SELECT s.seatNo, s.seatRow, s.seatID, s.seatCol, s.classNo, s.scheduleID, s.status, sr.reservationNo
+		FROM seat s seatReservation sr
+		WHERE scheduleID = #{scheduleId_d}
+		and sr.reservationNo = #{reservationNo}
+		and sr.seatNo = s.seatNo
+
+		ORDER BY classNo DESC
+	</select>
+
+	<!-- 예약시 passengerNo 등록  -->
+	<update id="updateDPassengerSeats" parameterType="map">
+	    UPDATE seat
+	    SET passengerNo = CASE seatNo
+	        <foreach item="vo" collection="seats">
+	            WHEN #{vo.seatNo, jdbcType=INTEGER} THEN #{vo.passengerNo, jdbcType=INTEGER}
+	        </foreach>
+	        ELSE passengerNo  <!-- 기존 값을 유지하도록 설정 -->
+	    END,
+	    status = 'booked'
+	    WHERE seatNo IN 
+	        <foreach item="vo" collection="seats" open="(" separator="," close=")">
+	            #{vo.seatNo, jdbcType=INTEGER}
+	        </foreach>
+	    
+	    AND scheduleId = #{scheduleId_d}
+	</update>
+	
+	<update id="updateAPassengerSeats" parameterType="map">
+	    UPDATE seat
+	    SET passengerNo = CASE seatNo
+	        <foreach item="vo" collection="seats">
+	            WHEN #{vo.seatNo, jdbcType=INTEGER} THEN #{vo.passengerNo, jdbcType=INTEGER}
+	        </foreach>
+	        ELSE passengerNo  <!-- 기존 값을 유지하도록 설정 -->
+	    END,
+	    status = 'booked'
+	    WHERE seatNo IN 
+	        <foreach item="vo" collection="seats" open="(" separator="," close=")">
+	            #{vo.seatNo, jdbcType=INTEGER}
+	        </foreach>
+	    
+	    AND scheduleId = #{scheduleId_a}
+	</update>
+
+	<!-- 좌석 예약 테이블에도 등록 -->
+	<insert id="insertSeatDReservations">
+		INSERT INTO seatReservation (seatReservationNo, reservationNo, seatNo,
+		adultPassengerNo, childPassengerNo, infantPassengerNo)
+		SELECT seatReservation_seq.nextval, #{reservationNo},
+		seatNo,
+		adultPassengerNo,
+		childPassengerNo,
+		infantPassengerNo
+		FROM (
+		<foreach item="vo" collection="reservations"
+			separator="UNION ALL">
+			SELECT #{vo.seatNo, jdbcType=INTEGER} AS seatNo,
+			#{vo.adultPassengerNo, jdbcType=INTEGER} AS adultPassengerNo,
+			#{vo.childPassengerNo, jdbcType=INTEGER} AS childPassengerNo,
+			#{vo.infantPassengerNo, jdbcType=INTEGER} AS infantPassengerNo
+			FROM dual
+		</foreach>
+		)
+	</insert>
+	
+	<!-- 좌석 예약 테이블에도 등록 -->
+	<insert id="insertSeatReservations">
+		INSERT INTO seatReservation (seatReservationNo, reservationNo, seatNo,
+		adultPassengerNo, childPassengerNo, infantPassengerNo)
+		SELECT seatReservation_seq.nextval, #{reservationNo},
+		seatNo,
+		adultPassengerNo,
+		childPassengerNo,
+		infantPassengerNo
+		FROM (
+		<foreach item="vo" collection="reservations"
+			separator="UNION ALL">
+			SELECT #{vo.seatNo, jdbcType=INTEGER} AS seatNo,
+			#{vo.adultPassengerNo, jdbcType=INTEGER} AS adultPassengerNo,
+			#{vo.childPassengerNo, jdbcType=INTEGER} AS childPassengerNo,
+			#{vo.infantPassengerNo, jdbcType=INTEGER} AS infantPassengerNo
+			FROM dual
+		</foreach>
+		)
+	</insert>
+
+	<!-- 예약 취소 -->
+	<select id="seatReservedList" resultType="Long">
+		select seatNo from
+		seatreservation
+		where reservationNo = #{reservationNo}
+	</select>
+
+	<delete id="cancelSeatReservations">
+		DELETE FROM SeatReservation
+		WHERE seatNo IN
+		<foreach item="seatNo" collection="reservedSeats" open="("
+			separator="," close=")">
+			#{seatNo}
+		</foreach>
+		AND reservationNo = #{reservationNo}
+	</delete>
+	
+
+	<update id="updateSeatsOnCancellation">
+	    UPDATE seat
+	    SET
+	    passengerNo = NULL,
+	    status = 'available'
+	    WHERE seatNo IN 
+	    <foreach item="seatNo" collection="reservedSeats" open="(" separator="," close=")">
+	        #{seatNo, jdbcType=INTEGER}
+	    </foreach>
+	    
+	    AND scheduleId IN 
+	    <foreach item="id" collection="scheduleID" open="(" separator="," close=")">
+	        #{id, jdbcType=INTEGER}
+	    </foreach>
+	</update>
+
+
+
+</mapper>

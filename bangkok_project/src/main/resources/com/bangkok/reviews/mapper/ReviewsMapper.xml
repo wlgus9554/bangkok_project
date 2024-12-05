@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bangkok.reviews.mapper.ReviewsMapper">
+	<!-- 리뷰  리스트 -->
+	<select id="list" resultType="com.bangkok.reviews.vo.ReviewsVO">
+		select
+		rv.reviewNo,rv.service_Rating,rv.cleanliness_Rating,rv.convenience_Rating,rv.Amenities_Rating,rv.reviewContent,m.nickName,
+		rv.reviewTitle,to_char(rv.reviewDate,'yyyy-mm-dd')reviewDate,r.room_type,rv.count
+		from
+		reviews rv,member m,hotel_reservations hr,hotel_room r
+	   where r.no=#{no} and(hr.id=m.email)and(rv.reservation_no=hr.reservation_no)and(hr.roomNumber=r.rno)
+		ORDER BY rv.count DESC 
+	</select>
+	<select id="menuList" resultType="com.bangkok.reviews.vo.ReviewsVO">
+		select
+		h.no,rv.service_Rating,rv.cleanliness_Rating,rv.convenience_Rating,rv.Amenities_Rating,rv.reviewContent,
+		rv.reviewTitle,to_char(rv.reviewDate,'yyyy-mm-dd')reviewDate
+		from
+		reviews rv,hotel_room r,hotel h,hotel_reservations hr
+	   where r.no=#{no} and (rv.RESERVATION_NO=hr.RESERVATION_NO)and(h.no=r.no)and(hr.roomNumber=r.rno)
+	   	<![CDATA[
+	   and ROWNUM <= 3
+	   	]]> 
+		ORDER BY rv.count DESC 
+	</select>
+	
+
+	<!-- 리뷰  글보기 -->
+	<select id="view" resultType="com.bangkok.reviews.vo.ReviewsVO">
+	select rv.service_Rating,rv.cleanliness_Rating,rv.convenience_Rating,rv.Amenities_Rating,rv.reviewTitle,rv.reviewContent,
+	h.title,r.room_type
+	from reviews rv,hotel_reservations hr,Hotel h,hotel_room r
+	 WHERE rv.reservation_no = #{reservation_no} and(#{reservation_no} =hr.reservation_no)and(hr.roomNumber=r.rno)and(r.no=h.no)
+	</select>
+	
+<select id="getHasReview" resultType="String">
+    SELECT has_review 
+    FROM hotel_reservations 
+    WHERE RESERVATION_NO = #{reservation_no}
+</select>
+	<!-- 리뷰  등록 -->
+	<insert id="write">
+		
+		<!-- 먼저 ReviewsVO의 no에 setter를 이용해서 시퀀스에서 받아온 번호를 세팅해 준다. -->
+			insert into reviews(reviewNo,service_Rating,cleanliness_Rating,convenience_Rating,Amenities_Rating,reviewContent,reservation_no,reviewTitle)
+		values(reviewNo_seq.nextval,#{service_Rating},#{cleanliness_Rating},#{convenience_Rating},#{Amenities_Rating},#{reviewContent},#{reservation_no},#{reviewTitle})
+		
+	</insert>
+
+	<!-- 리뷰  확인 여부 -->
+	<update id="hasReview">
+		update hotel_reservations
+		set has_review ='N'
+		where RESERVATION_NO = #{reservation_no} 
+	</update>
+	<!-- 리뷰  확인 Y 바꾸기 -->
+	<update id="hasReviewMinus">
+		update hotel_reservations
+		set has_review ='Y'
+		where RESERVATION_NO = #{reservation_no} 
+	</update>
+<select id="isLiked" resultType="String">
+    SELECT  id,reviewNo
+    FROM likeCount 
+    WHERE id=#{id} and reviewNo=#{reviewNo}
+</select>	
+	<!-- 좋아요 테이블 컬럼 삭제 --> 
+	<delete id="deleteLike">
+	<![CDATA[
+ 		delete from likeCount 
+ 		where id=#{id} and reviewNo=#{reviewNo}
+  	]]> 
+	</delete>
+	<!-- 리뷰 좋아요 테이블 등록 -->
+	<insert id="likeCount">
+	insert into likeCount(id,reviewNo)
+	values(#{id},#{reviewNo})
+	</insert>
+	<!-- 좋아요 기능 -->
+	<update id="plus">
+		update reviews
+		set count = count +1
+		where reviewNo=#{reviewNo}
+	</update>
+	<update id="minus">
+		update reviews
+		set count = count -1
+		where reviewNo=#{reviewNo}
+	</update>
+	
+	<!-- 리뷰  삭제 --> 
+	<delete id="delete">
+	<![CDATA[
+ 		delete from reviews 
+ 		where reservation_no = ${reservation_no}
+  	]]> 
+	</delete>
+<!-- 좋아요 추가 -->
+
+</mapper>
